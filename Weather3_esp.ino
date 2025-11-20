@@ -11,16 +11,19 @@ const char* password = "password";
 
 // OpenWeatherMap API
 const String api_key = "85c8420c016866562ddf5502749ac681";
-const String city_name = "Boston";
+const String city_name = "Medford,Ma,US";
 const String weatherUrl = "http://api.openweathermap.org/data/2.5/weather?q=" + city_name + "&appid=" + api_key + "&units=imperial";
 
 // NeoPixel setup
 #define PIXEL_PIN 10
-#define NUM_PIXELS 30
+#define NUM_PIXELS 25
 Adafruit_NeoPixel pixels(NUM_PIXELS, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 // Segment display setup
 Adafruit_7segment display = Adafruit_7segment();
+
+unsigned long lastUpdate = 90000000;
+const unsigned long updateInterval = 15UL * 60UL * 1000UL;  // 15 minutes
 
 void setup() {
   Serial.begin(115200);
@@ -40,7 +43,7 @@ void setup() {
   Serial.println("\nConnected!");
 }
 
-void loop() {
+void fetchWeather() {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
     http.begin(weatherUrl);
@@ -54,6 +57,7 @@ void loop() {
       if (!error) {
         float temp_f = doc["main"]["temp"];
         String description = doc["weather"][0]["main"];
+        String description2 = doc["weather"][0]["description"];
 
         // Display temperature
         int temp_int = round(temp_f);
@@ -72,14 +76,14 @@ void loop() {
         if (description == "rain") {
           for (int i = 14; i < 19; i++) pixels.setPixelColor(i, pixels.Color(0, 102, 204));
         } else if (description == "snow") {
-          for (int i = 20; i < 24; i++) pixels.setPixelColor(i, pixels.Color(128, 128, 128));
-        } else if (description == "clear") {
-          for (int i = 0; i < 5; i++) pixels.setPixelColor(i, pixels.Color(255, 255, 0));
+          for (int i = 20; i < 25; i++) pixels.setPixelColor(i, pixels.Color(128, 128, 128));
+        } else if (description == "clear" || (description == "clouds" && (description2 == "few clouds" || description2 == "scattered clouds" || description2 == "broken clouds"))) {
+          for (int i = 0; i < 4; i++) pixels.setPixelColor(i, pixels.Color(255, 219, 2));
         } else if (description == "clouds" || description == "smoke" || description == "haze" || description == "dust") {
           for (int i = 14; i < 18; i++) pixels.setPixelColor(i, pixels.Color(255, 255, 255));
         } else if (description == "drizzle" || description == "mist") {
           for (int i = 14; i < 19; i++) pixels.setPixelColor(i, pixels.Color(81, 117, 135));
-        } else if (description == "Thunderstorm") {
+        } else if (description == "thunderstorm") {
           for (int i = 8; i <= 10; i++) pixels.setPixelColor(i, pixels.Color(0, 102, 204));
           pixels.setPixelColor(6, pixels.Color(255, 255, 0));
         } else {
@@ -87,7 +91,7 @@ void loop() {
         }
 
         pixels.show();
-        Serial.printf("Temp: %.1f°F, Sky: %s\n", temp_f, description.c_str());
+        Serial.printf("Temp: %.1f°F, Sky: %s\n", temp_f, description2.c_str());
       } else {
         Serial.println("JSON parse error");
       }
@@ -99,6 +103,15 @@ void loop() {
   } else {
     Serial.println("WiFi disconnected");
   }
+}
 
-  delay(15 * 60 * 1000);  // Update every fifteen minutes
+void loop() {
+  unsigned long now = millis();
+  if (now - lastUpdate >= updateInterval) {
+    lastUpdate = now;
+    fetchWeather();
+  }
+
+  // Keep Wi-Fi alive
+  delay(1);  // yield to background tasks
 }
