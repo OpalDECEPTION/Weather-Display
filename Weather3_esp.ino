@@ -22,8 +22,6 @@ Adafruit_NeoPixel pixels(NUM_PIXELS, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 // Segment display setup
 Adafruit_7segment display = Adafruit_7segment();
 
-unsigned long lastUpdate = 90000000;
-const unsigned long updateInterval = 15UL * 60UL * 1000UL;  // 15 minutes
 
 void setup() {
   Serial.begin(115200);
@@ -41,6 +39,11 @@ void setup() {
     Serial.print(".");
   }
   Serial.println("\nConnected!");
+
+  fetchWeather();         //get and display the weather
+  delay(15 * 60 * 1000);  // restart every 15 minutes
+  ESP.restart();          //restart the ESP to avoid wifi outages and replay the code
+  
 }
 
 void fetchWeather() {
@@ -106,12 +109,4 @@ void fetchWeather() {
 }
 
 void loop() {
-  unsigned long now = millis();
-  if (now - lastUpdate >= updateInterval) {
-    lastUpdate = now;
-    fetchWeather();
-  }
-
-  // Keep Wi-Fi alive
-  delay(1);  // yield to background tasks
 }
